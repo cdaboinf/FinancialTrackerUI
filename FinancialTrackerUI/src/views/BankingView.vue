@@ -22,7 +22,7 @@ const selectedMonth = ref(months[0].value);
 <template>
    <div class="p-6">
     <h1 class="text-2xl font-bold text-gray-800">Transactions</h1>
-    <p class="text-gray-600 dark">Manage your transactions here.</p>
+    <p class="text-gray-600 dark">View monthly detail credits and debits per month.</p>
   </div>
 
   <!-- Dropdown -->

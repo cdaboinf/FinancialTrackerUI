@@ -1,17 +1,23 @@
-import js from '@eslint/js'
-import pluginVue from 'eslint-plugin-vue'
+// Flat config style (ESLint v9+ / Vite projects)
+import js from "@eslint/js";
+import ts from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
+import vue from "eslint-plugin-vue";
 
 export default [
-  {
-    name: 'app/files-to-lint',
-    files: ['**/*.{js,mjs,jsx,vue}'],
-  },
-
-  {
-    name: 'app/files-to-ignore',
-    ignores: ['**/dist/**', '**/dist-ssr/**', '**/coverage/**'],
-  },
-
   js.configs.recommended,
-  ...pluginVue.configs['flat/essential'],
-]
+  {
+    files: ["**/*.ts", "**/*.vue"],
+    languageOptions: {
+      parser: tsParser,
+    },
+    plugins: {
+      "@typescript-eslint": ts,
+      vue,
+    },
+    rules: {
+      // Example: allow 'any[]' generic with ref
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+];

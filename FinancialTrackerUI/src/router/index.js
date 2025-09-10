@@ -7,9 +7,9 @@ import Banking from '@/views/BankingView.vue';
 
 const routes = [
   { path: '/', component: Home },
-  { path: '/transactions', component: Transactions },
-  { path: '/accounts', component: Accounts, beforeEnter: authGuard },
-  { path: '/banking', component: Banking, beforeEnter: authGuard }
+  { path: '/trends', component: Transactions, beforeEnter: authGuard },
+  { path: '/submission', component: Accounts, beforeEnter: authGuard },
+  { path: '/transactions', component: Banking, beforeEnter: authGuard }
 ];
 
 const router = createRouter({

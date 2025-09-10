@@ -6,13 +6,13 @@
         <router-link to="/" class="text-white text-lg px-4 py-2 hover:bg-gray-700 rounded">Home</router-link>
       </li>
       <li>
+        <router-link to="/trends" class="text-white text-lg px-4 py-2 hover:bg-gray-700 rounded">Trends</router-link>
+      </li>
+      <li>
+        <router-link to="/submission" class="text-white text-lg px-4 py-2 hover:bg-gray-700 rounded">Submission</router-link>
+      </li>
+      <li>
         <router-link to="/transactions" class="text-white text-lg px-4 py-2 hover:bg-gray-700 rounded">Transactions</router-link>
-      </li>
-      <li>
-        <router-link to="/accounts" class="text-white text-lg px-4 py-2 hover:bg-gray-700 rounded">Accounts</router-link>
-      </li>
-      <li>
-        <router-link to="/banking" class="text-white text-lg px-4 py-2 hover:bg-gray-700 rounded">Banking</router-link>
       </li>
     </ul>
 

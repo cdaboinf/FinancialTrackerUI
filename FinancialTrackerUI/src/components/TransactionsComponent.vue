@@ -1,164 +1,252 @@
 <template>
-  <div>
-    <!-- Filter Inputs -->
-    <div class="filters">
-      <input v-model="filters.category" placeholder="Filter by category" />
-      <input v-model="filters.vendor" placeholder="Filter by vendor" />
-      <input v-model="filters.description" placeholder="Filter by description" />
-      <button @click="showModal = true">+ Add Transaction</button>
+  <div class="p-6 max-w-6xl mx-auto">
+    <!-- Loading -->
+    <div v-if="loading" class="mb-4 text-center text-gray-500 font-medium">
+      Loading transactions...
     </div>
 
-    <!-- Transaction List -->
-    <TransactionComponent
-      v-for="transaction in filteredTransactions"
-      :key="transaction.id"
-      :transItem="transaction"
-    />
+    <div v-else>
+      <!-- Graph type toggle -->
+      <div class="flex justify-center space-x-6 mb-6">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="radio"
+            value="bar"
+            v-model="chartMode"
+            class="text-blue-600 focus:ring-blue-500"
+          />
+          <span class="text-gray-700">Bar Only</span>
+        </label>
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="radio"
+            value="line"
+            v-model="chartMode"
+            class="text-blue-600 focus:ring-blue-500"
+          />
+          <span class="text-gray-700">Line Only</span>
+        </label>
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input
+            type="radio"
+            value="both"
+            v-model="chartMode"
+            class="text-blue-600 focus:ring-blue-500"
+          />
+          <span class="text-gray-700">Both</span>
+        </label>
+      </div>
 
-    <!-- Loading/Error States -->
-    <div v-if="loading">Loading...</div>
-    <div v-if="error">{{ error }}</div>
+      <!-- Mixed Chart -->
+      <div
+        v-if="chartData && chartData.labels"
+        class="mb-8 bg-white p-4 rounded shadow"
+      >
+        <Bar :data="chartData" :options="chartOptions" />
+      </div>
 
-    <!-- Add Transaction Modal -->
-    <div v-if="showModal" class="modal-overlay">
-      <div class="modal">
-        <h2>Add New Transaction</h2>
-        <input v-model="newTransaction.category" placeholder="Category" />
-        <input v-model="newTransaction.vendor" placeholder="Vendor" />
-        <input v-model="newTransaction.description" placeholder="Description" />
-        <input v-model.number="newTransaction.amount" placeholder="Amount" type="number" />
-        <div class="modal-actions">
-          <button @click="addTransaction">Add</button>
-          <button @click="showModal = false">Cancel</button>
+      <!-- Top 10 Lists -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Credits -->
+        <div class="border rounded-lg overflow-hidden bg-green-50">
+          <div class="p-4 bg-green-200 font-semibold text-center">Top 10 Credits</div>
+          <ul>
+            <li
+              v-for="(tx, i) in uniqueTopCredits"
+              :key="`credit-${i}`"
+              class="px-6 py-2 border-t bg-green-100 hover:bg-green-200 flex justify-between items-center"
+            >
+              <span class="text-gray-700">{{ tx.description }}</span>
+              <span class="font-semibold text-green-700">
+                {{ tx.amount.toFixed(2) }}
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Debits -->
+        <div class="border rounded-lg overflow-hidden bg-red-50">
+          <div class="p-4 bg-red-200 font-semibold text-center">Top 10 Debits</div>
+          <ul>
+            <li
+              v-for="(tx, i) in uniqueTopDebits"
+              :key="`debit-${i}`"
+              class="px-6 py-2 border-t bg-red-100 hover:bg-red-200 flex justify-between items-center"
+            >
+              <span class="text-gray-700">{{ tx.description }}</span>
+              <span class="font-semibold text-red-700">
+                -{{ Math.abs(tx.amount).toFixed(2) }}
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue';
-import TransactionComponent from './TransactionComponent.vue';
-import Api from '../services/Api';
-import CacheService from '@/services/CacheService';
+<script setup lang="ts">
+import { ref, onMounted, computed } from "vue"
+import { Api } from "../services/Api"
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement
+} from "chart.js"
+import { Bar } from "vue-chartjs"
 
-const transactions = ref([]);
-const loading = ref(true);
-const error = ref(null);
-const api = new Api();
+ChartJS.register(
+  Title,
+  Tooltip,
+  Legend,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  LineElement,
+  PointElement
+)
 
-// Modal state
-const showModal = ref(false);
-const newTransaction = ref({
-  category: '',
-  vendor: '',
-  description: '',
-  amount: null
-});
+const { GetVectorTransactions } = Api()
 
-// Filters
-const filters = ref({
-  category: '',
-  vendor: '',
-  description: ''
-});
+const loading = ref(true)
+const transactions = ref<any[]>([])
+const currentYear = new Date().getFullYear()
+const chartMode = ref<"bar" | "line" | "both">("both")
 
-const filteredTransactions = computed(() => {
-  return transactions.value.filter(transaction => {
-    return (
-      transaction.category.toLowerCase().includes(filters.value.category.toLowerCase()) &&
-      transaction.vendor.toLowerCase().includes(filters.value.vendor.toLowerCase()) &&
-      transaction.description.toLowerCase().includes(filters.value.description.toLowerCase())
-    );
-  });
-});
+const fetchAllTransactions = async () => {
+  loading.value = true
+  transactions.value = []
 
-const loadTransactions = async () => {
-  loading.value = true;
-  error.value = null;
+  let pageNumber = 1
+  const pageSize = 50
+  let totalPages = 1
 
-  try {
-    const cached = CacheService.get('cachedTransactions');
-    if (cached) {
-      transactions.value = cached;
-      console.log('Loaded from cache');
-    } else {
-      const data = await api.GetFinancialTransactons();
-      transactions.value = data;
-      CacheService.set('cachedTransactions', data);
-      console.log('Fetched from API and cached');
+  while (pageNumber <= totalPages) {
+    const response = await GetVectorTransactions(
+      pageNumber,
+      pageSize,
+      `${currentYear}-01-01`,
+      `${currentYear}-12-31`
+    )
+
+    if (response?.data) {
+      transactions.value.push(...response.data)
     }
-  } catch (err) {
-    error.value = 'Failed to fetch financial transactions.';
-    console.error(err);
-  } finally {
-    loading.value = false;
-  }
-};
 
-const addTransaction = async () => {
-  try {
-    const created = await api.CreateTransaction(newTransaction.value);
-    transactions.value.push(created);
-    CacheService.set('cachedTransactions', transactions.value);
-    showModal.value = false;
-    newTransaction.value = {
-      category: '',
-      vendor: '',
-      description: '',
-      amount: null
-    };
-  } catch (err) {
-    console.error('Failed to add transaction:', err);
-    alert('Failed to add transaction. Please try again.');
+    totalPages = response?.totalPages || 1
+    pageNumber++
   }
-};
 
-onMounted(() => {
-  loadTransactions();
-});
+  loading.value = false
+}
+
+onMounted(fetchAllTransactions)
+
+// Monthly totals
+const monthlyTotals = computed(() => {
+  const months = Array.from({ length: 12 }, () => ({ credit: 0, debit: 0 }))
+  transactions.value.forEach(tx => {
+    const date = new Date(tx.date)
+    const month = date.getMonth()
+    if (tx.amount > 0) months[month].credit += tx.amount
+    else months[month].debit += Math.abs(tx.amount)
+  })
+  return months
+})
+
+// Chart data
+const chartData = computed(() => {
+  const labels = [
+    "Jan","Feb","Mar","Apr","May","Jun",
+    "Jul","Aug","Sep","Oct","Nov","Dec"
+  ]
+
+  const baseDatasets = [
+    {
+      type: "bar" as const,
+      label: "Debit (Bar)",
+      data: monthlyTotals.value.map(m => m.debit),
+      backgroundColor: "rgba(239, 68, 68, 0.6)"
+    },
+    {
+      type: "bar" as const,
+      label: "Credit (Bar)",
+      data: monthlyTotals.value.map(m => m.credit),
+      backgroundColor: "rgba(34, 197, 94, 0.6)"
+    },
+    {
+      type: "line" as const,
+      label: "Debit (Line)",
+      data: monthlyTotals.value.map(m => m.debit),
+      borderColor: "rgba(239, 68, 68, 1)",
+      backgroundColor: "rgba(239, 68, 68, 0.7)",
+      tension: 0.3,
+      borderWidth: 2,
+      fill: false,
+      yAxisID: "y"
+    },
+    {
+      type: "line" as const,
+      label: "Credit (Line)",
+      data: monthlyTotals.value.map(m => m.credit),
+      borderColor: "rgba(34, 197, 94, 1)",
+      backgroundColor: "rgba(34, 197, 94, 0.7)",
+      tension: 0.3,
+      borderWidth: 2,
+      fill: false,
+      yAxisID: "y"
+    }
+  ]
+
+  if (chartMode.value === "bar") {
+    return { labels, datasets: baseDatasets.filter(d => d.type === "bar") }
+  }
+  if (chartMode.value === "line") {
+    return { labels, datasets: baseDatasets.filter(d => d.type === "line") }
+  }
+  return { labels, datasets: baseDatasets } // both
+})
+
+const chartOptions = {
+  responsive: true,
+  plugins: {
+    legend: { position: "top" as const },
+    title: { display: true, text: "Monthly Debit vs Credit" }
+  },
+  scales: { y: { beginAtZero: true } }
+}
+
+// --- Top 10 credits/debits with unique amounts ---
+const uniqueTopCredits = computed(() => {
+  const seen = new Set<number>()
+  return [...transactions.value]
+    .filter(tx => tx.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .filter(tx => {
+      if (seen.has(tx.amount)) return false
+      seen.add(tx.amount)
+      return true
+    })
+    .slice(0, 10)
+})
+
+const uniqueTopDebits = computed(() => {
+  const seen = new Set<number>()
+  return [...transactions.value]
+    .filter(tx => tx.amount < 0)
+    .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+    .filter(tx => {
+      const absAmt = Math.abs(tx.amount)
+      if (seen.has(absAmt)) return false
+      seen.add(absAmt)
+      return true
+    })
+    .slice(0, 10)
+})
 </script>
-
-<style scoped>
-.filters {
-  margin-bottom: 1rem;
-}
-.filters input {
-  margin-right: 0.5rem;
-}
-.filters button {
-  padding: 0.3rem 1rem;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.modal {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  min-width: 300px;
-}
-.modal input {
-  display: block;
-  margin-bottom: 1rem;
-  width: 100%;
-  padding: 0.5rem;
-}
-.modal-actions {
-  display: flex;
-  justify-content: space-between;
-}
-</style>
