@@ -1,9 +1,9 @@
 import { useAuth0 } from '@auth0/auth0-vue'
 import axios from 'axios'
 
-const FinancialTransactionsApi = "https://localhost/FinancialTransactions"
-const EmbeddingTransactionsApi = "http://localhost:5005/EmbeddingTransactions"
-const VectorTransactionsApi = "http://localhost:5005/VectorTransactions"
+const FinancialTransactionsApi = import.meta.env.VITE_API_FinancialTransactions_URL
+const EmbeddingTransactionsApi = import.meta.env.VITE_API_EmbeddingTransactionsApi_URL
+const VectorTransactionsApi = import.meta.env.VITE_API_VectorTransactionsApi_URL
 
 export function Api() {
   const { getAccessTokenSilently } = useAuth0()

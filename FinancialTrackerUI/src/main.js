@@ -17,7 +17,7 @@ app.use(
     clientId: "C1R6iRUm2WvmLn1hIu5PkVLASp1Mrg3m",
     authorizationParams: {
       redirect_uri: window.location.origin,
-      audience: "https://dev-k0sl1xaa1o87ofbn.us.auth0.com/api/v2/"
+      audience: `https://${import.meta.env.VITE_AUTH0_DOMAIN}/api/v2/`
     }
   })
 );
@@ -25,7 +25,6 @@ app.use(
 app.use(router)
 app.use(PrimeVue);
 app.component('DataTable', DataTable);
-// eslint-disable-next-line vue/multi-word-component-names
 app.component('Column', Column);
 
 app.mount('#app')

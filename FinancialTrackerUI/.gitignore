@@ -28,3 +28,45 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# Terraform directories and state files
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# Sensitive environment files
+*.auto.tfvars
+*.tfvars
+.env*
+.env.local
+.env.production
+.env.*.local
+
+# Local plan files
+*.tfplan
+
+# Backup files
+*.backup
+*.bak
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node.js / Vue specific (if included in same repo)
+node_modules/
+dist/
+
